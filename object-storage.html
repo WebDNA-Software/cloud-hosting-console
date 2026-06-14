@@ -1,0 +1,71 @@
+[!]
+  object-storage.html — Object Storage (S3-compatible) screen.
+  GET /v4/object-storage/buckets -> RAM table -> buckets table.
+  Renders an empty state until buckets exist. Each bucket is an asset
+  (type=bucket, provider_id = bucket label+region). Field names
+  (label/region/objects/size/hostname) follow the Linode API.
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Object Storage[/text]
+[text]nav=object[/text]
+
+[text]r=[linode_get path=/v4/object-storage/buckets&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=bkt][body][/JSONstore2]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Object Storage</h1><div class="sub">Linode's S3 equivalent &mdash; fully S3-compatible. Same endpoints, access keys and tooling (AWS CLI, s3cmd, Cyberduck) as Amazon S3.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">/object-storage/buckets</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Create Bucket</button>
+  </div>
+</div>
+
+<div class="alert d-flex gap-3 align-items-start" style="background:#f0fbf5;border-color:#bfe9cf;">
+  <i class="bi bi-info-circle-fill fs-5 text-success"></i>
+  <div class="small">
+    <strong>S3-compatible.</strong> Buckets speak the S3 API, so anything targeting Amazon S3 works by swapping the endpoint to <span class="mono">*.linodeobjects.com</span>.
+    Pricing is flat: <strong>$0.02/GB</strong> with a $5/mo minimum under 250&nbsp;GB, and <strong>1&nbsp;TB of egress</strong> bundled in. Ideal for off-server <code>.db</code> backups, media, static sites and logs.
+  </div>
+</div>
+
+[if [code]=200][then]
+  [search table=bkt&eqpagedata=1][founditems]
+  <div class="card">
+    <div class="card-header">Buckets <span class="badge bg-light text-dark float-end">[results]</span></div>
+    [if [results]=0][then]
+      <div class="card-body text-center py-5">
+        <i class="bi bi-bucket fs-1 text-muted"></i>
+        <p class="legend mt-2 mb-0">No buckets yet. Create one to use S3-compatible storage &mdash; a natural off-box home for <code>.db</code> backups.</p>
+      </div>
+    [/then][else]
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Bucket</th><th>Region</th><th>Objects</th><th>Size</th><th>Endpoint</th></tr></thead>
+        <tbody>
+        [loop start=0&end=[math][results]-1[/math]]
+          [text]sz=[interpret][data:[index]:size][/interpret][/text]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td>[interpret][data:[index]:region][/interpret]</td>
+            <td>[interpret][data:[index]:objects][/interpret]</td>
+            <td>[math][sz]/1073741824[/math]&nbsp;GB</td>
+            <td class="mono">[interpret][data:[index]:hostname][/interpret]</td>
+          </tr>
+        [/loop]
+        </tbody>
+      </table>
+    </div>
+    [/else][/if]
+  </div>
+  <div class="legend mt-2">API also manages access keys (scoped per-bucket), CORS, lifecycle/expiry rules, and TLS for custom domains. Each bucket is an asset.</div>
+  [/founditems][/search]
+[/then][else]
+  <div class="alert alert-danger">Could not list buckets (HTTP [code]). Check the dev token scope on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+[include file=lib/console_foot.inc]

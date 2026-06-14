@@ -1,0 +1,66 @@
+[!]
+  nodebalancers.html — Managed load balancers (L4/7), $10/mo each.
+  GET /v4/nodebalancers. If your API token isn't scoped for this endpoint it
+  returns 401 — the screen detects that and explains how to enable it, and renders
+  the live table once the scope is added. Each NodeBalancer is an asset (type=nodebalancer).
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=NodeBalancers[/text]
+[text]nav=nodebalancers[/text]
+
+[text]r=[linode_get path=/v4/nodebalancers&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=nb][body][/JSONstore2]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>NodeBalancers</h1><div class="sub">Managed load balancers &mdash; L4/7 balancing, SSL termination, passive health checks. $10/mo each.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">/nodebalancers</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Create NodeBalancer</button>
+  </div>
+</div>
+
+[if [code]=200][then]
+  [search table=nb&eqpagedata=1][founditems]
+  <div class="card">
+    <div class="card-header">NodeBalancers <span class="badge bg-light text-dark float-end">[results]</span></div>
+    [if [results]=0][then]
+      <div class="card-body text-center py-5"><i class="bi bi-diagram-3 fs-1 text-muted"></i>
+        <p class="legend mt-2 mb-0">No NodeBalancers yet. Create one to distribute traffic across a client's Linode pool.</p></div>
+    [/then][else]
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Label</th><th>Region</th><th>Hostname</th><th>Public IPv4</th><th>ID</th></tr></thead>
+        <tbody>
+        [loop start=0&end=[math][results]-1[/math]]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td>[region_label code=[interpret][data:[index]:region][/interpret]]</td>
+            <td class="mono">[interpret][data:[index]:hostname][/interpret]</td>
+            <td class="mono">[interpret][data:[index]:ipv4][/interpret]</td>
+            <td class="mono legend">[interpret][data:[index]:id][/interpret]</td>
+          </tr>
+        [/loop]
+        </tbody>
+      </table>
+    </div>
+    [/else][/if]
+  </div>
+  [/founditems][/search]
+[/then][else][if [code]=401][then]
+  <div class="alert alert-warning d-flex gap-3 align-items-start">
+    <i class="bi bi-shield-lock fs-5"></i>
+    <div><strong>API token not scoped for NodeBalancers (HTTP 401).</strong>
+    <div class="small mt-1">Add the <span class="mono">NodeBalancers: Read/Write</span> scope to your API token to enable this screen &mdash; the table below activates automatically once it returns 200.</div></div>
+  </div>
+[/then][else]
+  <div class="alert alert-danger">Could not list NodeBalancers (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if][/else][/if]
+
+<div class="card mt-3"><div class="card-body legend">Layer 4/7 balancing with SSL termination, passive health checks and sticky sessions &mdash; pair with a client's Linode pool, and a <a href="/firewalls">Cloud Firewall</a> in front.</div></div>
+
+[include file=lib/console_foot.inc]

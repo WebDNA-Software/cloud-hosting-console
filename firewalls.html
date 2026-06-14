@@ -1,0 +1,93 @@
+[!]
+  firewalls.html — Cloud Firewalls screen, live from the Linode API.
+  GET /v4/networking/firewalls -> JSONstore2 (RAM table) -> a card per firewall.
+  Each firewall is an asset (type=firewall, provider_id = firewall id).
+
+  Nested rule arrays (rules.inbound[] / rules.outbound[]) have no [results] count
+  of their own, so we iterate a BOUNDED loop (Linode caps rules at 25/direction)
+  and only count/render an entry when its action is ACCEPT or DROP via [switch];
+  absent entries resolve to a literal [..] that matches neither, so they're
+  skipped. Outer (firewall) loop [index] is captured to [fwi] before the inner
+  (rule) loop, since [index] always refers to the innermost loop.
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Firewalls[/text]
+[text]nav=firewalls[/text]
+
+[text]r=[linode_get path=/v4/networking/firewalls&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=fw][body][/JSONstore2]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Cloud Firewalls</h1><div class="sub">Stateful inbound/outbound rules applied at the Linode level &mdash; before traffic reaches the VM.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">/networking/firewalls</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Create Firewall</button>
+  </div>
+</div>
+
+[if [code]=200][then]
+  [search table=fw&eqpagedata=1][founditems]
+  <div class="legend mb-3">[results] [if [results]=1][then]firewall[/then][else]firewalls[/else][/if] on this account.</div>
+  <div class="row g-3 mb-3">
+  [loop start=0&end=[math][results]-1[/math]]
+    [text]fwi=[index][/text]
+    [text]fwstatus=[interpret][data:[fwi]:status][/interpret][/text]
+    [!]-- count inbound / outbound rules (bounded; ACCEPT|DROP = a real entry) --[/!]
+    [text]nin=0[/text][text]nout=0[/text]
+    [loop start=0&end=24][switch value=[interpret][data:[fwi]:rules:inbound:[index]:action][/interpret]][case value=ACCEPT][text]nin=[math][nin]+1[/math][/text][/case][case value=DROP][text]nin=[math][nin]+1[/math][/text][/case][/switch][/loop]
+    [loop start=0&end=24][switch value=[interpret][data:[fwi]:rules:outbound:[index]:action][/interpret]][case value=ACCEPT][text]nout=[math][nout]+1[/math][/text][/case][case value=DROP][text]nout=[math][nout]+1[/math][/text][/case][/switch][/loop]
+    [text]stbadge=bg-secondary-subtle text-secondary[/text][text]sttext=[fwstatus][/text]
+    [switch value=[fwstatus]][case value=enabled][text]stbadge=bg-success-subtle text-success[/text][text]sttext=Enabled[/text][/case][/switch]
+    <div class="col-md-4"><div class="card h-100"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div><div class="fw-semibold">[interpret][data:[fwi]:label][/interpret]</div>
+          <div class="legend">Inbound default: [interpret][data:[fwi]:rules:inbound_policy][/interpret]</div></div>
+        <span class="badge [stbadge]">[sttext]</span>
+      </div>
+      <hr class="my-2">
+      <div class="d-flex justify-content-between small"><span class="text-muted">Inbound rules</span><span class="fw-semibold">[nin]</span></div>
+      <div class="d-flex justify-content-between small"><span class="text-muted">Outbound rules</span><span class="fw-semibold">[nout]</span></div>
+      <div class="d-flex justify-content-between small"><span class="text-muted">Outbound default</span><span class="fw-semibold">[interpret][data:[fwi]:rules:outbound_policy][/interpret]</span></div>
+      <div class="d-flex justify-content-between small"><span class="text-muted">Firewall ID</span><span class="mono legend">[interpret][data:[fwi]:id][/interpret]</span></div>
+    </div></div></div>
+  [/loop]
+  </div>
+
+  [!]-- Inbound rules detail for the first firewall (data:0). --[/!]
+  [if [results]=0][then][/then][else]
+  <div class="card">
+    <div class="card-header">Inbound rules &mdash; <span class="fw-semibold">[interpret][data:0:label][/interpret]</span></div>
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead><tr><th>Label</th><th>Action</th><th>Protocol</th><th>Ports</th></tr></thead>
+        <tbody>
+        [loop start=0&end=24]
+          [text]act=[interpret][data:0:rules:inbound:[index]:action][/interpret][/text]
+          [text]lbl=[interpret][data:0:rules:inbound:[index]:label][/interpret][/text]
+          [text]proto=[interpret][data:0:rules:inbound:[index]:protocol][/interpret][/text]
+          [text]ports=[interpret][data:0:rules:inbound:[index]:ports][/interpret][/text]
+          [!]-- [switch] doesn't fall through, so each action gets its own row. An
+               absent rule's action matches neither case and is skipped. --[/!]
+          [switch value=[act]]
+          [case value=ACCEPT]<tr><td>[lbl]</td><td><span class="badge bg-success-subtle text-success">ACCEPT</span></td><td>[proto]</td><td class="mono">[ports]</td></tr>[/case]
+          [case value=DROP]<tr><td>[lbl]</td><td><span class="badge bg-danger-subtle text-danger">DROP</span></td><td>[proto]</td><td class="mono">[ports]</td></tr>[/case]
+          [/switch]
+        [/loop]
+          <tr class="text-muted"><td>default</td><td><span class="badge bg-danger-subtle text-danger">[interpret][data:0:rules:inbound_policy][/interpret]</span></td><td>&mdash;</td><td>all other</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  [/else][/if]
+  <div class="legend mt-2">Attached Linodes per firewall come from <code>/networking/firewalls/{id}/devices</code>. Each firewall is an asset (<code>provider_id</code> = firewall ID).</div>
+  [/founditems][/search]
+[/then][else]
+  <div class="alert alert-danger">Could not list firewalls (HTTP [code]). Check the dev token scope on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+[include file=lib/console_foot.inc]

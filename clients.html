@@ -1,0 +1,115 @@
+[!]
+  clients.html — Client administration (the system-of-record side of the console).
+  CRUD over db/clients.db (tab-delimited, schema in docs/schema.md). This is a
+  PERSISTENT db (db=, not RAM table=) — clients are our own data, not provider
+  JSON. Writes use [append]/[replace]/[delete]; text values are [url]-encoded so
+  '&'/'=' in a name don't corrupt the record. Linode/asset linkage (filling the
+  "Unassigned" column on resource screens) is a separate adapter.
+
+  Action dispatch: a form posts [do]=add|update|delete. When the page is loaded
+  without posting, [do] resolves to the literal "[do]" and matches no [case], so
+  no write fires. Same trick for ?edit=ID prefill: eqiddata=[edit] simply finds
+  nothing when [edit] is absent.
+[/!]
+[text]page_title=Clients[/text]
+[text]nav=clients[/text]
+[text]iso=[date format=%Y-%m-%dT%H:%M:%S][/text]
+
+[!]-- action dispatch (writes happen before any output) --[/!]
+[text]msg=[/text]
+[switch value=[do]]
+  [case value=add]
+    [text]maxid=0[/text]
+    [search db=db/clients.db&neiddatarq=[blank]][founditems][if [id] > [maxid]][then][text]maxid=[id][/text][/then][/if][/founditems][/search]
+    [text]newid=[math][maxid]+1[/math][/text]
+    [append db=db/clients.db]id=[newid]&name=[url][name][/url]&company=[url][company][/url]&email=[url][email][/url]&phone=[url][phone][/url]&status=[url][status][/url]&billing_ref=&notes=[url][notes][/url]&created=[iso]&modified=[iso][/append]
+    [text]msg=Added [name] (id [newid]).[/text]
+  [/case]
+  [case value=update]
+    [replace db=db/clients.db&eqiddata=[cid]]name=[url][name][/url]&company=[url][company][/url]&email=[url][email][/url]&phone=[url][phone][/url]&status=[url][status][/url]&notes=[url][notes][/url]&modified=[iso][/replace]
+    [text]msg=Saved changes to id [cid].[/text]
+  [/case]
+  [case value=delete]
+    [delete db=db/clients.db&eqiddata=[cid]]
+    [text]msg=Deleted client id [cid].[/text]
+  [/case]
+[/switch]
+
+[!]-- edit prefill: if ?edit=ID matches a record, switch the form to update mode --[/!]
+[text]editmode=0[/text][text]ecid=[/text][text]en=[/text][text]ec=[/text][text]ee=[/text][text]ep=[/text][text]es=active[/text][text]enotes=[/text]
+[search db=db/clients.db&eqiddata=[edit]][founditems][text]editmode=1[/text][text]ecid=[id][/text][text]en=[name][/text][text]ec=[company][/text][text]ee=[email][/text][text]ep=[phone][/text][text]es=[status][/text][text]enotes=[notes][/text][/founditems][/search]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Clients</h1><div class="sub">Who we host for &mdash; the system of record every asset ties back to. (Billing/invoicing is not included.)</div></div>
+  <span class="api-note align-self-center">Store: <span class="api-chip">db/clients.db</span></span>
+</div>
+
+[if [countchars][msg][/countchars] > 0][then]<div class="alert alert-success py-2">[msg]</div>[/then][/if]
+
+<div class="row g-3">
+  <!-- form -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">[if [editmode]=1][then]Edit client[/then][else]Add client[/else][/if]</div>
+      <div class="card-body">
+        <form method="post" action="/clients">
+          <input type="hidden" name="do" value="[if [editmode]=1][then]update[/then][else]add[/else][/if]">
+          [if [editmode]=1][then]<input type="hidden" name="cid" value="[ecid]">[/then][/if]
+          <div class="mb-2"><label class="form-label small mb-1">Name</label><input class="form-control form-control-sm" name="name" value="[en]" required></div>
+          <div class="mb-2"><label class="form-label small mb-1">Company</label><input class="form-control form-control-sm" name="company" value="[ec]"></div>
+          <div class="mb-2"><label class="form-label small mb-1">Email</label><input class="form-control form-control-sm" type="email" name="email" value="[ee]"></div>
+          <div class="mb-2"><label class="form-label small mb-1">Phone</label><input class="form-control form-control-sm" name="phone" value="[ep]"></div>
+          <div class="mb-2"><label class="form-label small mb-1">Status</label>
+            <select class="form-select form-select-sm" name="status">
+              <option value="active"[if [es]=active][then] selected[/then][/if]>active</option>
+              <option value="suspended"[switch value=[es]][case value=suspended] selected[/case][/switch]>suspended</option>
+              <option value="closed"[switch value=[es]][case value=closed] selected[/case][/switch]>closed</option>
+            </select></div>
+          <div class="mb-3"><label class="form-label small mb-1">Notes</label><textarea class="form-control form-control-sm" name="notes" rows="2">[enotes]</textarea></div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-success" type="submit">[if [editmode]=1][then]Save changes[/then][else]Add client[/else][/if]</button>
+            [if [editmode]=1][then]<a class="btn btn-sm btn-outline-secondary" href="/clients">Cancel</a>[/then][/if]
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- list -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">Clients</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+          <tbody>
+          [text]rows=0[/text]
+          [search db=db/clients.db&neiddatarq=[blank]&sort=name][founditems]
+            [text]rows=[math][rows]+1[/math][/text]
+            [text]stbadge=bg-secondary-subtle text-secondary[/text]
+            [switch value=[status]][case value=active][text]stbadge=bg-success-subtle text-success[/text][/case][case value=suspended][text]stbadge=bg-warning-subtle text-warning[/text][/case][case value=closed][text]stbadge=bg-secondary-subtle text-secondary[/text][/case][/switch]
+            <tr>
+              <td class="fw-semibold">[name]</td>
+              <td>[company]</td>
+              <td class="legend">[email]</td>
+              <td><span class="badge [stbadge]">[status]</span></td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary py-0" href="/clients?edit=[id]">Edit</a>
+                <form method="post" action="/clients" class="d-inline" onsubmit="return confirm('Delete this client?');">
+                  <input type="hidden" name="do" value="delete"><input type="hidden" name="cid" value="[id]">
+                  <button class="btn btn-sm btn-outline-danger py-0" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          [/founditems][/search]
+          [if [rows]=0][then]<tr><td colspan="5" class="text-center py-4 legend">No clients yet. Add your first one with the form.</td></tr>[/then][/if]
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+[include file=lib/console_foot.inc]

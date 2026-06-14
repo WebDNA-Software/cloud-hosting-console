@@ -1,0 +1,63 @@
+/* custom.css — Console shell + dashboard styles (extracted from console_head.inc).
+   Loaded after Bootstrap 5.3; served static by Apache (not WebDNA-processed). */
+:root{ --bs-primary:#00b259; --bs-primary-rgb:0,178,89; --ink:#0d1424; --line:#e6e9ef; --muted:#6b7588; --webdna-red:#dd0000; --bar-h:63px;
+  --bs-success:#009931; --bs-success-rgb:0,153,49; }
+/* Override Bootstrap "success" -> WebDNA green #009931 (rgba(0,153,49,1)).
+   .btn-success sets its own component vars, so override those too. */
+.btn-success{
+  --bs-btn-bg:#009931; --bs-btn-border-color:#009931;
+  --bs-btn-hover-bg:#00822a; --bs-btn-hover-border-color:#007a27;
+  --bs-btn-active-bg:#007a27; --bs-btn-active-border-color:#007325;
+  --bs-btn-disabled-bg:#009931; --bs-btn-disabled-border-color:#009931;
+}
+body{ font-family:'Inter',system-ui,sans-serif; background:#f4f6fa; color:#1d2433; font-size:.925rem; }
+.app{display:flex;min-height:100vh;}
+.sidebar{ width:248px;flex:0 0 248px;background:var(--webdna-red); color:#aeb7c7;position:sticky;top:0;height:100vh;overflow-y:auto; }
+.sidebar .brand{ height:var(--bar-h);padding:0 20px;color:#000;background:#fff;font-weight:700;font-size:24px;letter-spacing:-.02em;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line); }
+.sidebar .brand .logo{width:26px;height:26px;display:block;border-radius:6px;}
+.sidebar .nav-group{padding:14px 12px 4px;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.09em;color:#fff;font-weight:600;border-bottom:1px solid rgba(255,255,255,.5);}
+.sidebar .nav-link{ color:#fff;border-radius:8px;padding:8px 12px;margin:1px 8px;
+  display:flex;align-items:center;gap:11px;font-weight:500;cursor:pointer;text-decoration:none; }
+.sidebar .nav-link i{font-size:1.05rem;width:18px;text-align:center;}
+.sidebar .nav-link:hover{background:rgba(255,255,255,.10);color:#fff;}
+.sidebar .nav-link.active{background:rgba(255,255,255,.80);color:#333;font-weight:600;}
+.sidebar .nav-link.soon{opacity:.4;cursor:default;}
+.sidebar .nav-link.soon:hover{background:none;color:#fff;}
+.sidebar .nav-link .badge{margin-left:auto;}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{ height:var(--bar-h);background:#fff;border-bottom:1px solid var(--line);padding:0 22px;
+  display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5; }
+.topbar .search{max-width:340px;flex:1;}
+.topbar .search .form-control{background:#f4f6fa;border-color:transparent;}
+.region-pill{font-size:.8rem;border:1px solid var(--line);border-radius:20px;
+  padding:5px 12px;display:flex;align-items:center;gap:7px;color:#475;white-space:nowrap;}
+.content{padding:24px;max-width:1280px;width:100%;}
+.page-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+.page-head h1{font-size:1.45rem;font-weight:700;letter-spacing:-.02em;margin:0;}
+.page-head .sub{color:var(--muted);font-size:.85rem;margin-top:2px;}
+.card{border:1px solid var(--line);border-radius:13px;box-shadow:0 1px 2px rgba(15,23,42,.03);}
+.card-header{background:#fff;border-bottom:1px solid var(--line);font-weight:600;border-radius:13px 13px 0 0!important;padding:13px 18px;}
+.stat .label{color:var(--muted);font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+.stat .num{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;}
+.stat .ico{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:1.25rem;}
+.trend-up{color:var(--bs-primary);font-weight:600;font-size:.78rem;}
+.table{font-size:.86rem;}
+.table thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);}
+.table td{vertical-align:middle;}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px;}
+.s-run{background:var(--bs-primary);box-shadow:0 0 0 3px rgba(0,178,89,.18);}
+.s-off{background:#9aa3b2;}
+.s-prov{background:#f0ad4e;box-shadow:0 0 0 3px rgba(240,173,78,.2);}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;}
+.client-tag{font-size:.74rem;background:#eef1f6;border-radius:5px;padding:2px 7px;color:#475569;}
+.api-note{font-size:.74rem;color:var(--muted);}
+.api-chip{font-family:ui-monospace,monospace;font-size:.72rem;background:#0d1424;color:#7ee2a8;border-radius:5px;padding:2px 8px;}
+.bg-soft-green{background:rgba(0,178,89,.12);color:#067a3f;}
+.bg-soft-blue{background:rgba(13,110,253,.1);color:#0d6efd;}
+.bg-soft-amber{background:rgba(240,173,78,.16);color:#b9772b;}
+.bg-soft-purple{background:rgba(111,66,193,.12);color:#6f42c1;}
+.legend{font-size:.78rem;color:var(--muted);}
+.btn-create{font-weight:600;}
+@media(max-width:860px){ .sidebar{position:fixed;left:-260px;transition:.2s;z-index:50;} .sidebar.open{left:0;} .content{padding:16px;} }

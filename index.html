@@ -1,0 +1,112 @@
+[!]
+  index.html — Console Overview (dashboard). Stat tiles and the table are LIVE
+  from GET /linode/instances; figures not yet collected (spend, DNS, buckets) are
+  shown as "not implemented" rather than faked. WebDNA-processed (.html handler).
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Dashboard[/text]
+[text]nav=overview[/text]
+
+[!]-- Fetch instances once; split status off the marker, parse the body into a
+     RAM table (in-memory, discarded next request). --[/!]
+[text]r=[linode_get path=/v4/linode/instances&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=instances][body][/JSONstore2]
+
+[!]-- Pre-pass: capture totals/counts ([results] is only valid inside founditems;
+     [text] vars persist out to the body). [if [x]=word] is broken, so count with
+     [switch]. --[/!]
+[text]total=0[/text][text]nrun=0[/text][text]nbk=0[/text]
+[if [code]=200][then]
+  [search table=instances&eqpagedata=1][founditems]
+    [text]total=[results][/text]
+    [loop start=0&end=[math][results]-1[/math]]
+      [switch value=[interpret][data:[index]:status][/interpret]][case value=running][text]nrun=[math][nrun]+1[/math][/text][/case][/switch]
+      [switch value=[interpret][data:[index]:backups:enabled][/interpret]][case value=true][text]nbk=[math][nbk]+1[/math][/text][/case][/switch]
+    [/loop]
+  [/founditems][/search]
+[/then][/if]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Dashboard</h1><div class="sub">Everything the Linode API provisions, across all client accounts.</div></div>
+  <span class="api-note">Region pool: <span class="api-chip">ap-southeast (Sydney)</span> <span class="api-chip">au-mel (Melbourne)</span></span>
+</div>
+
+[if [code]=200][then]
+<div class="row g-3 mb-1">
+  <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+    <div class="ico bg-soft-green"><i class="bi bi-hdd-stack"></i></div>
+    <div><div class="label">Linodes</div><div class="num">[total]</div><span class="trend-up"><i class="bi bi-broadcast-pin"></i> live from API</span></div>
+  </div></div></div>
+  <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+    <div class="ico bg-soft-green"><i class="bi bi-play-circle"></i></div>
+    <div><div class="label">Running</div><div class="num">[nrun]<span class="fs-6 text-muted">/[total]</span></div><span class="legend">powered on now</span></div>
+  </div></div></div>
+  <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+    <div class="ico bg-soft-amber"><i class="bi bi-shield-check"></i></div>
+    <div><div class="label">Backups enabled</div><div class="num">[nbk]<span class="fs-6 text-muted">/[total]</span></div><span class="legend">[math][total]-[nbk][/math] unprotected</span></div>
+  </div></div></div>
+  <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+    <div class="ico bg-soft-purple"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="label">Est. monthly spend</div><div class="num text-muted">&mdash;</div><span class="legend">not implemented</span></div>
+  </div></div></div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Linodes
+        <a class="small text-decoration-none" href="/linodes">View all <i class="bi bi-arrow-right-short"></i></a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Label</th><th>Client</th><th>Region</th><th>Plan</th><th>Status</th><th>Backups</th></tr></thead>
+          <tbody>
+          [search table=instances&eqpagedata=1][founditems][loop start=0&end=[math][results]-1[/math]]
+            [text]st=[interpret][data:[index]:status][/interpret][/text]
+            [text]mem=[interpret][data:[index]:specs:memory][/interpret][/text]
+            [text]bk=[interpret][data:[index]:backups:enabled][/interpret][/text]
+            [text]dot=s-prov[/text][switch value=[st]][case value=running][text]dot=s-run[/text][/case][case value=offline][text]dot=s-off[/text][/case][case value=stopped][text]dot=s-off[/text][/case][case value=shutting_down][text]dot=s-off[/text][/case][/switch]
+            [text]bkbadge=bg-danger-subtle text-danger[/text][text]bktext=Off[/text][switch value=[bk]][case value=true][text]bkbadge=bg-success-subtle text-success[/text][text]bktext=On[/text][/case][/switch]
+            <tr>
+              <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+              <td><span class="client-tag">Unassigned</span></td>
+              <td>[region_label code=[interpret][data:[index]:region][/interpret]]</td>
+              <td>[math][mem]/1024[/math]&nbsp;GB</td>
+              <td><span class="status-dot [dot]"></span>[st]</td>
+              <td><span class="badge [bkbadge]">[bktext]</span></td>
+            </tr>
+          [/loop][/founditems][/search]
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header">About</div>
+      <div class="card-body">
+        <p class="legend mb-0">A WebDNA console over the Linode (Akamai Cloud) API, backed by a provider-agnostic client / asset store. Each resource screen reads live from the API; the client / asset linkage lives in <code>db/</code>.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Asset model</div>
+      <div class="card-body">
+        <p class="legend mb-0">Each Linode, bucket, domain and firewall is an <span class="client-tag">asset</span> carrying a client, a provider cost and a renewal/status &mdash; a provider-agnostic model, so a new provider or resource type is a new adapter + type, not a schema change.</p>
+      </div>
+    </div>
+  </div>
+</div>
+[/then][else]
+<div class="alert alert-danger">Linode API unreachable (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+<p class="legend mt-3">Engine: WebDNA [version] &middot; [date] [time]</p>
+
+[include file=lib/console_foot.inc]

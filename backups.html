@@ -1,0 +1,97 @@
+[!]
+  backups.html — Backups & Snapshots screen.
+  Driven entirely by GET /v4/linode/instances: each instance's backups object
+  carries enabled / available / last_successful / schedule (day, window), so the
+  status table needs no per-instance calls. Per-backup detail and on-demand
+  snapshots use /linode/instances/{id}/backups.
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Backups[/text]
+[text]nav=backups[/text]
+
+[text]r=[linode_get path=/v4/linode/instances&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=inst][body][/JSONstore2]
+
+[!]-- pre-pass: totals --[/!]
+[text]total=0[/text][text]nbk=0[/text][text]navail=0[/text]
+[if [code]=200][then][search table=inst&eqpagedata=1][founditems]
+  [text]total=[results][/text]
+  [loop start=0&end=[math][results]-1[/math]]
+    [switch value=[interpret][data:[index]:backups:enabled][/interpret]][case value=true][text]nbk=[math][nbk]+1[/math][/text][/case][/switch]
+    [switch value=[interpret][data:[index]:backups:available][/interpret]][case value=true][text]navail=[math][navail]+1[/math][/text][/case][/switch]
+  [/loop]
+[/founditems][/search][/then][/if]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Backups &amp; Snapshots</h1><div class="sub">The Linode Backups service &mdash; automated rotating backups plus on-demand snapshots, per VM.</div></div>
+  <span class="api-note align-self-center">API: <span class="api-chip">/linode/instances/{id}/backups</span></span>
+</div>
+
+[if [code]=200][then]
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6"><div class="card stat"><div class="card-body"><div class="label">Protected</div><div class="num text-success">[nbk] / [total]</div></div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat"><div class="card-body"><div class="label">Restorable now</div><div class="num">[navail]</div><span class="legend">backup available</span></div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat"><div class="card-body"><div class="label">Unprotected</div><div class="num">[math][total]-[nbk][/math]</div><span class="legend">no backups enabled</span></div></div></div>
+  <div class="col-md-3 col-6"><div class="card stat"><div class="card-body"><div class="label">Backup cost</div><div class="num">~25%</div><span class="legend">of each plan / mo</span></div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Backup status by Linode</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Linode</th><th>Plan</th><th>Backups</th><th>Last successful</th><th>Schedule</th><th></th></tr></thead>
+      <tbody>
+      [search table=inst&eqpagedata=1][founditems][loop start=0&end=[math][results]-1[/math]]
+        [text]mem=[interpret][data:[index]:specs:memory][/interpret][/text]
+        [text]bk=[interpret][data:[index]:backups:enabled][/interpret][/text]
+        [text]last=[interpret][data:[index]:backups:last_successful][/interpret][/text]
+        [text]day=[interpret][data:[index]:backups:schedule:day][/interpret][/text]
+        [text]win=[interpret][data:[index]:backups:schedule:window][/interpret][/text]
+        [!]-- backups badge --[/!]
+        [text]bkbadge=bg-danger-subtle text-danger[/text][text]bktext=Off[/text]
+        [switch value=[bk]][case value=true][text]bkbadge=bg-success-subtle text-success[/text][text]bktext=On[/text][/case][/switch]
+        [!]-- last successful: date head, or — when null --[/!]
+        [text]lastdisp=[getchars start=1&end=10][last][/getchars][/text]
+        [switch value=[last]][case value=null][text]lastdisp=&mdash;[/text][/case][/switch]
+        [!]-- schedule: "day, window", or scheduling / — --[/!]
+        [text]sched=[day], [win][/text]
+        [switch value=[day]][case value=null][text]sched=&mdash;[/text][/case][case value=Scheduling][text]sched=<span class="legend">scheduling&hellip;</span>[/text][/case][/switch]
+        <tr[switch value=[bk]][case value=true][/case][/switch][switch value=[bk]][case value=false] class="table-warning"[/case][/switch]>
+          <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+          <td>[math][mem]/1024[/math]&nbsp;GB</td>
+          <td><span class="badge [bkbadge]">[bktext]</span></td>
+          <td>[lastdisp]</td>
+          <td>[sched]</td>
+          <td class="text-end">[switch value=[bk]][case value=true]<button class="btn btn-sm btn-outline-secondary py-0" disabled>Restore</button>[/case][case value=false]<button class="btn btn-sm btn-success py-0" disabled>Enable</button>[/case][/switch]</td>
+        </tr>
+      [/loop][/founditems][/search]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6"><div class="card h-100"><div class="card-body">
+    <h6 class="fw-semibold">Two layers, both API-driven</h6>
+    <p class="legend mb-2">The managed <strong>Backups</strong> service runs automatic rotating backups (daily window + weekly + the most recent), restorable to a new or existing Linode. <strong>Snapshots</strong> are a manual point-in-time capture you trigger before risky changes &mdash; they don't rotate out.</p>
+    <p class="legend mb-0">For the reseller model, off-server copies belong in <a href="/object-storage">Object Storage</a> &mdash; the durable, cross-region layer the per-VM backup service doesn't replace.</p>
+  </div></div></div>
+  <div class="col-md-6"><div class="card h-100"><div class="card-body">
+    <h6 class="fw-semibold">Restore flow</h6>
+    <ol class="legend mb-0 ps-3">
+      <li>Pick a backup or snapshot for the Linode.</li>
+      <li>Restore in place, or to a brand-new Linode in either AU region.</li>
+      <li>Reattach firewall + VPC; the DNS A record can repoint if the IP changes.</li>
+    </ol>
+  </div></div></div>
+</div>
+[/then][else]
+  <div class="alert alert-danger">Could not load instances (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+[include file=lib/console_foot.inc]

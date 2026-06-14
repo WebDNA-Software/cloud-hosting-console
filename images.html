@@ -1,0 +1,95 @@
+[!]
+  images.html — "Linux Images": OS / distribution DISK images used to provision
+  Linodes (NOT photo storage). GET /v4/images returns Linode's public
+  distributions plus any private custom images on the account. Custom images are
+  your own repeatable client builds (capture a configured disk, clone it on
+  provisioning). Each custom image is an asset (type=image).
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Linux Images[/text]
+[text]nav=images[/text]
+
+[text]r=[linode_get path=/v4/images&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=img][body][/JSONstore2]
+
+[!]-- pre-pass: count public (distributions) vs private (custom) --[/!]
+[text]total=0[/text][text]npub=0[/text][text]npriv=0[/text]
+[if [code]=200][then][search table=img&eqpagedata=1][founditems]
+  [text]total=[results][/text]
+  [loop start=0&end=[math][results]-1[/math]]
+    [switch value=[interpret][data:[index]:is_public][/interpret]][case value=true][text]npub=[math][npub]+1[/math][/text][/case][case value=false][text]npriv=[math][npriv]+1[/math][/text][/case][/switch]
+  [/loop]
+[/founditems][/search][/then][/if]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Linux Images</h1><div class="sub">OS / distribution <strong>disk images</strong> used to provision Linodes &mdash; not a photo/object store. Capture a configured disk as a custom image to clone repeatable client builds.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">/images</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Capture Image</button>
+  </div>
+</div>
+
+[if [code]=200][then]
+  [!]-- Custom (private) images: the reseller's own builds --[/!]
+  <div class="card mb-3">
+    <div class="card-header">Custom images <span class="badge bg-light text-dark float-end">[npriv]</span></div>
+    [if [npriv]=0][then]
+      <div class="card-body text-center py-4">
+        <i class="bi bi-disc fs-2 text-muted"></i>
+        <p class="legend mt-2 mb-0">No custom images yet. Capture a configured Linode's disk to template a standard client stack (OS + packages + config) and clone it on provisioning.</p>
+      </div>
+    [/then][else]
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Image</th><th>ID</th><th>Size</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody>
+        [search table=img&eqpagedata=1][founditems][loop start=0&end=[math][results]-1[/math]]
+          [switch value=[interpret][data:[index]:is_public][/interpret]][case value=false]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td class="mono legend">[interpret][data:[index]:id][/interpret]</td>
+            <td>[interpret][data:[index]:size][/interpret]&nbsp;MB</td>
+            <td>[interpret][data:[index]:status][/interpret]</td>
+            <td>[getchars start=1&end=10][interpret][data:[index]:created][/interpret][/getchars]</td>
+          </tr>
+          [/case][/switch]
+        [/loop][/founditems][/search]
+        </tbody>
+      </table>
+    </div>
+    [/else][/if]
+  </div>
+
+  [!]-- Public distributions you can provision from --[/!]
+  <div class="card">
+    <div class="card-header">Available distributions <span class="badge bg-light text-dark float-end">[npub]</span></div>
+    <div class="table-responsive" style="max-height:30rem;overflow:auto;">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Distribution</th><th>Vendor</th><th>Image ID</th><th>Size</th><th>Status</th></tr></thead>
+        <tbody>
+        [search table=img&eqpagedata=1][founditems][loop start=0&end=[math][results]-1[/math]]
+          [switch value=[interpret][data:[index]:is_public][/interpret]][case value=true]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td>[interpret][data:[index]:vendor][/interpret]</td>
+            <td class="mono legend">[interpret][data:[index]:id][/interpret]</td>
+            <td>[interpret][data:[index]:size][/interpret]&nbsp;MB</td>
+            <td>[interpret][data:[index]:status][/interpret]</td>
+          </tr>
+          [/case][/switch]
+        [/loop][/founditems][/search]
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="legend mt-2">Public distributions are Linode-provided OS images (<code>linode/&hellip;</code>); custom images are private to the account.</div>
+[/then][else]
+  <div class="alert alert-danger">Could not list images (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+[include file=lib/console_foot.inc]

@@ -1,0 +1,68 @@
+[!]
+  block-storage.html — Block Storage (Volumes): attachable SSD volumes, up to
+  10 TB, that detach/reattach between Linodes. Distinct from Object Storage (this
+  is a mounted disk, not an S3 bucket). GET /v4/volumes.
+  If your API token isn't scoped for this endpoint it returns 401 — the screen
+  detects that and explains how to enable it; the live table renders once the
+  Volumes scope is added. Each volume is an asset (type=volume).
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Block Storage[/text]
+[text]nav=block[/text]
+
+[text]r=[linode_get path=/v4/volumes&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+[JSONstore2 table=vol][body][/JSONstore2]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Block Storage</h1><div class="sub">Attachable SSD volumes (up to 10&nbsp;TB) that detach/reattach between Linodes &mdash; a mounted disk, not an <a href="/object-storage">Object Storage</a> bucket.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">/volumes</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Create Volume</button>
+  </div>
+</div>
+
+[if [code]=200][then]
+  [search table=vol&eqpagedata=1][founditems]
+  <div class="card">
+    <div class="card-header">Volumes <span class="badge bg-light text-dark float-end">[results]</span></div>
+    [if [results]=0][then]
+      <div class="card-body text-center py-5"><i class="bi bi-device-hdd fs-1 text-muted"></i>
+        <p class="legend mt-2 mb-0">No volumes yet. Create one to add persistent SSD storage to a Linode.</p></div>
+    [/then][else]
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Label</th><th>Region</th><th>Size</th><th>Status</th><th>Attached to</th><th>ID</th></tr></thead>
+        <tbody>
+        [loop start=0&end=[math][results]-1[/math]]
+          [text]lid=[interpret][data:[index]:linode_id][/interpret][/text]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td>[region_label code=[interpret][data:[index]:region][/interpret]]</td>
+            <td>[interpret][data:[index]:size][/interpret]&nbsp;GB</td>
+            <td>[interpret][data:[index]:status][/interpret]</td>
+            <td class="mono">[switch value=[lid]][case value=null]<span class="legend">unattached</span>[/case][/switch][switch value=[getchars start=1&end=1][lid][/getchars]][case value=0][lid][/case][case value=1][lid][/case][case value=2][lid][/case][case value=3][lid][/case][case value=4][lid][/case][case value=5][lid][/case][case value=6][lid][/case][case value=7][lid][/case][case value=8][lid][/case][case value=9][lid][/case][/switch]</td>
+            <td class="mono legend">[interpret][data:[index]:id][/interpret]</td>
+          </tr>
+        [/loop]
+        </tbody>
+      </table>
+    </div>
+    [/else][/if]
+  </div>
+  [/founditems][/search]
+[/then][else][if [code]=401][then]
+  <div class="alert alert-warning d-flex gap-3 align-items-start">
+    <i class="bi bi-shield-lock fs-5"></i>
+    <div><strong>API token not scoped for Block Storage (HTTP 401).</strong>
+    <div class="small mt-1">Add the <span class="mono">Volumes: Read/Write</span> scope to your API token to enable this screen &mdash; the table below activates automatically once it returns 200.</div></div>
+  </div>
+[/then][else]
+  <div class="alert alert-danger">Could not list volumes (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if][/else][/if]
+
+[include file=lib/console_foot.inc]

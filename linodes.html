@@ -1,0 +1,78 @@
+[!]
+  linodes.html — the Linodes screen.
+  GET /v4/linode/instances -> JSONstore2 (RAM table) -> rendered as assets.
+  Each Linode is an asset: type=linode, provider=linode, provider_id=Linode ID.
+  Client / cost / renewal would come from the asset store (db/assets.db);
+  shown as placeholders here so the asset shape is explicit.
+[/!]
+[include file=config/secrets.inc]
+[include file=lib/linode_adapter.inc]
+[text]page_title=Linodes[/text]
+[text]nav=linodes[/text]
+
+[!]-- Fetch instances; split the HTTP status off the marker, keep the JSON body. --[/!]
+[text]r=[linode_get path=/v4/linode/instances&authed=1][/text]
+[text]code=[getchars start=1&end=3][middle startafter=__CONSOLE_HTTP__][r][/middle][/getchars][/text]
+[text]body=[middle endbefore=__CONSOLE_HTTP__][r][/middle][/text]
+
+[!]-- Parse into a RAM table (table=, not db=): in-memory, discarded next request,
+     no disk file and no cleanup. Fields are JSON-path named (data:N:field); the
+     whole doc is one record (page=1) and [results] is the data[] array length. --[/!]
+[JSONstore2 table=instances][body][/JSONstore2]
+
+[include file=lib/console_head.inc]
+
+<div class="page-head">
+  <div><h1>Linodes</h1><div class="sub">Virtual machines &mdash; live from the Linode API, mapped onto the asset model.</div></div>
+  <div class="d-flex gap-2">
+    <span class="api-note align-self-center">API: <span class="api-chip">GET /linode/instances</span></span>
+    <button class="btn btn-sm btn-success btn-create" disabled><i class="bi bi-plus-lg"></i> Create Linode</button>
+  </div>
+</div>
+
+[if [code]=200][then]
+  [search table=instances&eqpagedata=1][founditems]
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>[results] [if [results]=1][then]instance[/then][else]instances[/else][/if]</span>
+      <div class="legend"><span class="status-dot s-run"></span>Running <span class="status-dot s-prov ms-2"></span>Provisioning <span class="status-dot s-off ms-2"></span>Offline</div>
+    </div>
+    [if [results]=0][then]
+      <div class="card-body legend">No Linodes on this account.</div>
+    [/then][else]
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Label</th><th>Client</th><th>Region</th><th>Plan / vCPU</th><th>Public IP</th><th>Status</th><th>Backups</th><th></th></tr></thead>
+        <tbody>
+        [loop start=0&end=[math][results]-1[/math]]
+          [text]st=[interpret][data:[index]:status][/interpret][/text]
+          [text]mem=[interpret][data:[index]:specs:memory][/interpret][/text]
+          [text]bk=[interpret][data:[index]:backups:enabled][/interpret][/text]
+          [!]-- status -> dot class. [if [x]=word] is broken (bare word read as a
+               variable), so default the class then flip it with [switch]. --[/!]
+          [text]dot=s-prov[/text][switch value=[st]][case value=running][text]dot=s-run[/text][/case][case value=offline][text]dot=s-off[/text][/case][case value=stopped][text]dot=s-off[/text][/case][case value=shutting_down][text]dot=s-off[/text][/case][/switch]
+          [text]bkbadge=bg-danger-subtle text-danger[/text][text]bktext=Off[/text]
+          [switch value=[bk]][case value=true][text]bkbadge=bg-success-subtle text-success[/text][text]bktext=On[/text][/case][/switch]
+          <tr>
+            <td class="fw-semibold">[interpret][data:[index]:label][/interpret]</td>
+            <td><span class="client-tag">Unassigned</span></td>
+            <td>[region_label code=[interpret][data:[index]:region][/interpret]]</td>
+            <td>[math][mem]/1024[/math]&nbsp;GB &middot; [interpret][data:[index]:specs:vcpus][/interpret]&nbsp;vCPU <span class="legend mono">[interpret][data:[index]:type][/interpret]</span></td>
+            <td class="mono">[interpret][data:[index]:ipv4:0][/interpret]</td>
+            <td><span class="status-dot [dot]"></span>[st]</td>
+            <td><span class="badge [bkbadge]">[bktext]</span></td>
+            <td class="text-end"><i class="bi bi-three-dots-vertical text-muted"></i></td>
+          </tr>
+        [/loop]
+        </tbody>
+      </table>
+    </div>
+    [/else][/if]
+  </div>
+  <div class="legend mt-2">Linode ID is the asset <code>provider_id</code>. Client / cost / renewal join from <code>db/assets.db</code>. Per-instance API actions &mdash; boot / reboot / shutdown, resize, rebuild, attach firewall, toggle backups &mdash; via the API.</div>
+  [/founditems][/search]
+[/then][else]
+  <div class="alert alert-danger">Could not list Linodes (HTTP [code]). Check the dev token on the <a href="/linode-check.tpl" class="alert-link">Connectivity</a> page.</div>
+[/else][/if]
+
+[include file=lib/console_foot.inc]
