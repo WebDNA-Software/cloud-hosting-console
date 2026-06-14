@@ -6,10 +6,9 @@ docs.
 
 ---
 
-## Outbound HTTP — use `[shell]` + curl
+## Outbound HTTP — useing `[shell]` + curl
 
-Make outbound HTTP/API calls with `[shell]` running `curl`. Do **not** use
-`[tcpconnect]`/`[tcpsend]`, and `[geturl]` does not exist in this build.
+Make outbound HTTP/API calls with `[shell]` running `curl`. `[tcpconnect]`/`[tcpsend]` is not used in this build.
 
 - **Why:** curl handles TLS, headers and redirects and returns just the response
   body (no HTTP headers to strip); `[shell]` is enabled on the server.
@@ -19,9 +18,9 @@ Make outbound HTTP/API calls with `[shell]` running `curl`. Do **not** use
 - **Caveat:** curl `-H` puts the token on argv (visible to local `ps`); before
   prod, move the header into a `curl -K` config file (mode 600).
 
-## Parsing JSON — `[JSONstore2]` only (RAM `table=`)
+## Parsing JSON — `[JSONstore2]`
 
-Use **`[JSONstore2]`**, never `[JSONstore]`. `[jsonstore2]` flattens arrays and
+Use **`[JSONstore2]`**. `[jsonstore2]` flattens arrays and
 stores each node by full path name; `[JSONstore]` stores an array as a single
 `name:array` field (no per-element rows).
 
@@ -74,8 +73,7 @@ stores each node by full path name; `[JSONstore]` stores an array as a single
 
 ## Comments
 
-Comments are **`[!]...[/!]` ONLY**. The `[!-- ... --]` form is INVALID WebDNA and
-doesn't always error loudly — don't rely on render output to catch it.
+Comments are **`[!]...[/!]`**.
 
 ## URL / form params
 
@@ -118,17 +116,17 @@ Validated on the server:
 
 ## Includes
 
-`[include file=config/secrets.inc]` (path relative to the template) works; the
-`^config/...` form errors with "template not found".
+`[include file=config/secrets.inc]` (path relative to the template) works;
+reccomended usage is to store secrets in the globals directory outside the
+reach of the site root, therefor change the path to  `^config/...`.
 
 ## Environment / server
 
-- **Apache + mod_webdna.** The handler processes `.tpl .tmpl .dna .html .zarc`,
+- **Apache + mod_webdna.** The handler processes `.html`,
   so `index.html` is WebDNA-evaluated. `DirectoryIndex index.html`.
 - Pretty URLs: `.htaccess` internally rewrites `/foo` → `/foo.html` (keeps WebDNA
   processing; POST body + query string preserved).
 - `[shell]` must be enabled for the outbound-curl pattern; ensure `curl` is present.
-- **WebDNA error log:** `/var/log/apache2/error.log` (`sudo -n tail -f`).
 - Template changes deploy fine (no stale-cache problem).
 - **Deploy:** `bin/deploy.sh` rsyncs content-only (the web root is typically
   www-data-owned); `--apply` to push, `--clean` to remove stale dev-only files.
