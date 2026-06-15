@@ -1,0 +1,28 @@
+# Pretty URLs — serve /foo via /foo.html with an INTERNAL rewrite, so mod_webdna
+# still processes the page and POST body + query string are preserved. The
+# .html file keeps working too; this just lets the nav use extensionless paths.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^(.+)$ $1.html [L]
+</IfModule>
+
+# Console web root — deny direct HTTP access to server-side-only files.
+# WebDNA reads these from disk via [include]; Apache must never serve them raw.
+# (.inc/.db/.dat aren't WebDNA-handled extensions, so without this they'd be
+# served as plain text — leaking secrets, schemas, and adapter internals.)
+<FilesMatch "\.(inc|db|dat|example|md|sh)$">
+  Require all denied
+</FilesMatch>
+
+# Never serve a stray real secrets file even if one lands at the root.
+<Files "secrets.inc">
+  Require all denied
+</Files>
+
+# WebDNA writes ErrorLog.txt into the web root; it leaks server paths — deny it.
+<Files "ErrorLog.txt">
+  Require all denied
+</Files>
