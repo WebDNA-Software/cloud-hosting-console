@@ -1,0 +1,2 @@
+# Server-side files only. Never served over HTTP — read by WebDNA on disk.
+Require all denied
