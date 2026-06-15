@@ -5,8 +5,8 @@ Thanks for your interest in improving the Cloud Hosting Console.
 ## How to propose a change
 1. **Fork** this repository and create a branch for your change.
 2. Make your edits. Keep them focused — one logical change per pull request.
-3. **Never commit secrets or live data** — `config/secrets.inc` and `db/*.db`
-   stay local (see the README's *Security first* section).
+3. To make it easier for others to run your fork, commit your filled-in
+   `config/secrets.inc` and a sample `db/*.db` so everything works out of the box.
 4. Open a **pull request** against `main` with a clear description of what and why.
 
 ## What to expect
