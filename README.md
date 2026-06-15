@@ -1,4 +1,4 @@
-# Cloud Console
+# Cloud Hosting Console
 
 A WebDNA-based console for managing **Linode (Akamai Cloud)** resources —
 Linodes, Cloud Firewalls, DNS, Object Storage, Backups, Linux Images,
@@ -73,10 +73,9 @@ Serve it over **HTTPS**, behind **authentication**, and restrict access by IP.
 Behind a reverse proxy, read the client IP from **`X-Forwarded-For`**, not the
 connecting address.
 
-
 ## Setup
 ```sh
-# 1. secrets (gitignored)
+# 1. secrets (create .gitignore first — see "Security first")
 cp config/secrets.inc.example config/secrets.inc
 #    edit config/secrets.inc — set LINODE_API_TOKEN to a scoped token
 
@@ -85,27 +84,41 @@ cp db/clients.db.example db/clients.db
 cp db/assets.db.example  db/assets.db
 #    make db/ and the .db files writable by the web server user (e.g. www-data)
 
-# 3. serve the directory with Apache + mod_webdna, then open it in a browser
+# 3. protect the served path (see "Security first") — add the deny .htaccess files
+
+# 4. serve the directory with Apache + mod_webdna, then open it in a browser
 ```
 
 `bin/deploy.sh` can rsync the tree to a remote server (dry-run by default;
-override `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_KEY` / `DEPLOY_PATH`).
+override `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_KEY` / `DEPLOY_PATH`). It never
+transfers `config/secrets.inc` or `db/*.db` — each box keeps its own.
 
 ## Token scopes
-The core screens need: Linodes, Firewalls, Domains, Object Storage, Backups,
-Images. The **NodeBalancers** and **Block Storage** screens activate once you add
-the **NodeBalancers** and **Volumes** scopes to your token.
+Use a **scoped** personal access token, and a **separate dev token** from prod —
+the API has no sandbox, so every call creates real, billable infrastructure.
+
+The core screens need: **Linodes, Firewalls, Domains, Object Storage, Backups,
+Images**. The **NodeBalancers** and **Block Storage** screens activate once you
+add the **NodeBalancers** and **Volumes** scopes.
+
+## Data model
+Provider-agnostic by design. Two stores: `client`, and `asset` — where a Linode,
+a domain, and a bucket are all *assets* of a different `type`. A new provider or
+resource type is a new adapter + type, not a schema reshape. See
+[`docs/schema.md`](docs/schema.md).
 
 ## Documentation
 - WebDNA implementation gotchas — [`docs/webdna-notes.md`](docs/webdna-notes.md)
 - Data model — [`docs/schema.md`](docs/schema.md)
-- Integration seam — [`docs/integration-boundary.md`](docs/integration-boundary.md)
+- Integration seam (Stripe / billing sidecar) — [`docs/integration-boundary.md`](docs/integration-boundary.md)
 
 ## Notes
 - Bootstrap / icons / fonts load from a CDN — vendor them locally for offline or
   production use.
-- The console is privileged (it holds an API token): serve it over HTTPS, behind
-  authentication and IP restriction.
+- Case-sensitivity: `[include]`, file, and `.db` names must match exactly. Linux
+  won't forgive what macOS silently accepts.
 
 ## License
 Apache 2.0 — see [LICENSE](LICENSE).
+</content>
+</invoke>
